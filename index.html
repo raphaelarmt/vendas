@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chat</title>
+  <style>
+    :root { --brand:#111827; --line:#e5e7eb; --muted:#6b7280; --bg:#fff; --sidebar:#f9fafb; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html,body { height:100%; font-family:Arial,Helvetica,sans-serif; color:var(--brand); background:var(--bg); }
+    button,input,textarea { font:inherit; cursor:pointer; }
+
+    /* Layout */
+    .app { display:flex; height:100dvh; height:100vh; overflow:hidden; }
+    .sidebar {
+      width:260px; flex:0 0 260px;
+      background:var(--sidebar);
+      border-right:1px solid var(--line);
+      display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+    .main { flex:1; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
+
+    /* Meu código */
+    .my-code {
+      display:flex; align-items:center; gap:8px;
+      padding:14px 12px 12px;
+      border-bottom:1px solid var(--line);
+    }
+    .my-code__icon {
+      width:32px; height:32px; border-radius:8px;
+      background:var(--brand); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:800; flex:0 0 32px;
+    }
+    .my-code__info { flex:1; min-width:0; }
+    .my-code__label { font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.05em; display:block; }
+    .my-code__value { font-size:14px; font-weight:800; letter-spacing:.12em; color:var(--brand); }
+    .my-code__copy {
+      border:1px solid var(--line); background:#fff; border-radius:6px;
+      padding:5px 8px; font-size:11px; font-weight:700; color:var(--muted);
+      flex:0 0 auto;
+    }
+    .my-code__copy:hover { border-color:var(--brand); color:var(--brand); }
+
+    /* Meus dados */
+    .my-dados { border-bottom:1px solid var(--line); }
+    .my-dados__toggle {
+      width:100%; display:flex; align-items:center; gap:8px;
+      padding:9px 12px; border:0; background:transparent; cursor:pointer;
+      font-size:12px; font-weight:700; color:#374151; text-align:left;
+    }
+    .my-dados__toggle:hover { background:#f0f2f5; }
+    .my-dados__status { flex:1; font-size:11px; color:var(--muted); }
+    .my-dados__status.ok { color:#10a37f; }
+    .my-dados__arrow { color:var(--muted); font-size:11px; transition:transform .15s; }
+    .my-dados__arrow.open { transform:rotate(180deg); }
+    .my-dados__form { padding:8px 12px 12px; display:none; }
+    .my-dados__field { display:flex; flex-direction:column; gap:3px; margin-bottom:8px; }
+    .my-dados__field label { font-size:11px; font-weight:700; color:#374151; }
+    .my-dados__field input {
+      border:1px solid #d1d5db; border-radius:6px;
+      padding:7px 9px; font-size:13px; outline:none; background:#fff;
+    }
+    .my-dados__field input:focus { border-color:var(--brand); }
+    .my-dados__save {
+      width:100%; background:var(--brand); color:#fff; border:0;
+      border-radius:7px; padding:8px; font-size:13px; font-weight:700;
+    }
+    .my-dados__save:hover { opacity:.88; }
+    .my-dados__msg { font-size:11px; margin-top:6px; text-align:center; }
+
+    /* Lista de empresas */
+    .empresa-list { flex:1; overflow-y:auto; padding:8px; }
+    .empresa-empty { padding:20px 8px; text-align:center; color:var(--muted); font-size:13px; line-height:1.5; }
+    .empresa-item {
+      width:100%; display:flex; align-items:center; gap:10px;
+      padding:10px 10px; border-radius:8px; border:0; background:transparent;
+      text-align:left; cursor:pointer;
+    }
+    .empresa-item:hover { background:#eef2f7; }
+    .empresa-item.is-active { background:#e8eaf6; }
+    .empresa-item__avatar {
+      width:34px; height:34px; border-radius:8px;
+      background:var(--brand); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; font-weight:800; flex:0 0 34px;
+    }
+    .empresa-item__body { flex:1; min-width:0; }
+    .empresa-item__nome { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .empresa-item__sub { font-size:11px; color:var(--muted); margin-top:1px; }
+    .empresa-item__remove {
+      border:0; background:transparent; color:#d1d5db;
+      padding:4px 6px; border-radius:4px; font-size:14px; flex:0 0 auto;
+    }
+    .empresa-item__remove:hover { color:#b91c1c; background:#fef2f2; }
+
+    /* Botão adicionar */
+    .btn-add {
+      margin:8px; border:1px dashed #d1d5db; background:#fff;
+      border-radius:8px; padding:10px; font-size:13px; font-weight:700;
+      color:var(--muted); text-align:center;
+    }
+    .btn-add:hover { border-color:var(--brand); color:var(--brand); background:#f9fafb; }
+
+    /* Main screens */
+    .screen { display:none; flex:1; flex-direction:column; overflow:hidden; }
+    .screen.is-active { display:flex; }
+
+    /* Empty state */
+    .empty-wrap {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      padding:24px; text-align:center;
+    }
+    .empty-wrap h2 { font-size:22px; margin-bottom:8px; }
+    .empty-wrap p { color:var(--muted); font-size:14px; line-height:1.5; margin-bottom:20px; }
+    .btn-primary {
+      background:var(--brand); color:#fff; border:0;
+      border-radius:10px; padding:12px 22px; font-size:14px; font-weight:700;
+    }
+    .btn-primary:hover { opacity:.88; }
+
+    /* Chat */
+    .chat-header {
+      padding:12px 16px; border-bottom:1px solid var(--line);
+      background:#fff; display:flex; align-items:center; gap:10px;
+    }
+    .chat-header__back {
+      display:none; border:1px solid var(--line); background:#fff;
+      border-radius:8px; padding:6px 10px; font-size:13px; font-weight:700;
+    }
+    .chat-header__nome { font-size:15px; font-weight:800; }
+    .messages { flex:1; overflow-y:auto; padding:0; }
+    .empty-chat { max-width:720px; margin:0 auto; padding:64px 20px 24px; text-align:center; }
+    .empty-chat h2 { font-size:24px; margin-bottom:8px; }
+    .empty-chat p { color:var(--muted); font-size:14px; line-height:1.5; }
+    .msg-row { padding:8px 16px; }
+    .msg-inner { max-width:800px; margin:0 auto; display:flex; align-items:flex-start; gap:10px; }
+    .msg-row.cliente .msg-inner { justify-content:flex-end; }
+    .msg-row.sistema .msg-inner { justify-content:center; }
+    .msg-avatar {
+      width:30px; height:30px; border-radius:6px; flex:0 0 30px;
+      background:#10a37f; color:#fff; display:flex; align-items:center;
+      justify-content:center; font-size:11px; font-weight:800;
+    }
+    .msg-body { font-size:14px; line-height:1.55; white-space:pre-wrap; word-break:break-word; max-width:min(100%,680px); }
+    .msg-row.cliente .msg-body { background:#f4f4f4; border-radius:16px; padding:9px 13px; max-width:min(78%,580px); }
+    .msg-row.sistema .msg-body { background:#f3f4f6; color:#4b5563; border-radius:999px; padding:6px 12px; text-align:center; font-size:12px; }
+
+    /* Composer */
+    .composer-wrap { padding:12px 16px 16px; border-top:1px solid var(--line); background:rgba(255,255,255,.97); }
+    .composer { max-width:800px; margin:0 auto; position:relative; }
+    .composer textarea {
+      width:100%; min-height:50px; max-height:150px; resize:none;
+      border:1px solid #d1d5db; border-radius:12px;
+      padding:13px 50px 13px 14px; outline:none; line-height:1.35;
+    }
+    .composer textarea:focus { border-color:var(--brand); }
+    .send-btn {
+      position:absolute; right:8px; bottom:8px;
+      width:34px; height:34px; border:0; border-radius:8px;
+      background:var(--brand); color:#fff; font-size:17px; font-weight:800;
+    }
+
+    /* Modal */
+    .modal-bg {
+      position:fixed; inset:0; background:rgba(15,23,42,.4);
+      display:none; align-items:center; justify-content:center;
+      padding:16px; z-index:9999;
+    }
+    .modal-bg.is-open { display:flex; }
+    .modal {
+      width:min(100%,420px); background:#fff; border-radius:12px;
+      box-shadow:0 24px 80px rgba(15,23,42,.2); border:1px solid var(--line);
+      overflow:hidden;
+    }
+    .modal-head {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px; border-bottom:1px solid var(--line);
+    }
+    .modal-head h3 { font-size:15px; font-weight:800; }
+    .modal-close { border:1px solid var(--line); background:#fff; border-radius:6px; padding:5px 9px; font-size:14px; }
+    .modal-body { padding:14px 16px 18px; display:flex; flex-direction:column; gap:10px; }
+    .modal-body label { font-size:12px; font-weight:800; color:#374151; }
+    .modal-body input {
+      min-height:44px; border:1px solid #d1d5db; border-radius:8px;
+      padding:9px 12px; outline:none;
+    }
+    .modal-body input:focus { border-color:var(--brand); }
+    .modal-msg { font-size:12px; border-radius:6px; padding:8px 10px; display:none; }
+    .modal-msg.err { display:block; background:#fef2f2; color:#b91c1c; }
+    .modal-msg.ok  { display:block; background:#ecfdf5; color:#047857; }
+
+    /* Mobile */
+    @media (max-width:680px) {
+      .sidebar {
+        position:fixed; inset:0 auto 0 0; z-index:100;
+        transform:translateX(-100%); transition:transform .22s ease;
+        width:min(82vw,280px);
+      }
+      .sidebar.is-open { transform:translateX(0); }
+      .sidebar-overlay {
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:99;
+      }
+      .sidebar-overlay.is-open { display:block; }
+      .chat-header__back { display:block; }
+    }
+  </style>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="my-code">
+      <div class="my-code__icon">EU</div>
+      <div class="my-code__info">
+        <span class="my-code__label">Meu código</span>
+        <span class="my-code__value" id="myCode">—</span>
+      </div>
+      <button class="my-code__copy" id="btnCopy" title="Copiar código">Copiar</button>
+    </div>
+    <div class="my-dados">
+      <button class="my-dados__toggle" id="btnDadosToggle">
+        <span>Meus dados</span>
+        <span class="my-dados__status" id="dadosStatus">não preenchido</span>
+        <span class="my-dados__arrow" id="dadosArrow">▾</span>
+      </button>
+      <div class="my-dados__form" id="dadosForm">
+        <div class="my-dados__field">
+          <label>Nome completo</label>
+          <input type="text" id="dadosNome" placeholder="Seu nome completo" autocomplete="name">
+        </div>
+        <div class="my-dados__field">
+          <label>Telefone com DDD</label>
+          <input type="tel" id="dadosTelefone" placeholder="(65) 98157-0210" autocomplete="tel" maxlength="15">
+        </div>
+        <div class="my-dados__field">
+          <label>Endereço de entrega</label>
+          <input type="text" id="dadosEndereco" placeholder="Rua, número, bairro" autocomplete="street-address">
+        </div>
+        <button class="my-dados__save" id="btnDadosSalvar">Salvar</button>
+        <div class="my-dados__msg" id="dadosMsg"></div>
+      </div>
+    </div>
+
+    <div class="empresa-list" id="empresaList">
+      <div class="empresa-empty">Nenhuma empresa adicionada.</div>
+    </div>
+    <button class="btn-add" id="btnAddSidebar">+ Adicionar empresa</button>
+  </aside>
+
+  <main class="main">
+    <section class="screen is-active" id="screenEmpty">
+      <div class="empty-wrap">
+        <h2>Nenhuma loja conectada</h2>
+        <p>Adicione uma empresa pelo código<br>para começar a conversar.</p>
+        <button class="btn-primary" id="btnAddMain">Adicionar empresa</button>
+      </div>
+    </section>
+
+    <section class="screen" id="screenChat">
+      <div class="chat-header">
+        <button class="chat-header__back" id="btnBack">← Lojas</button>
+        <span class="chat-header__nome" id="chatNome">Loja</span>
+      </div>
+      <div class="messages" id="messages"></div>
+      <form class="composer-wrap" id="chatForm">
+        <div class="composer">
+          <textarea id="chatTexto" rows="1" placeholder="Pergunte sobre produtos, valores ou faça seu pedido"></textarea>
+          <button type="submit" class="send-btn">↑</button>
+        </div>
+      </form>
+    </section>
+  </main>
+</div>
+
+<div class="modal-bg" id="modalAdd">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Adicionar empresa</h3>
+      <button class="modal-close" id="btnModalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <label for="inputCodigo">Código da empresa</label>
+      <input type="text" id="inputCodigo" placeholder="Ex: ABC123" maxlength="10" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em;">
+      <button class="btn-primary" id="btnConectar">Conectar</button>
+      <div class="modal-msg" id="addMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var API = "https://guiarr.com.br/vendas/api-app/";
+
+  /* ── Estado ─────────────────────────────────────── */
+  var clientCode  = localStorage.getItem("app_client_code") || gerarCodigo();
+  var empresas    = JSON.parse(localStorage.getItem("app_empresas") || "[]");
+  var clientDados = JSON.parse(localStorage.getItem("app_client_dados") || "null");
+  var ativa       = null;
+  var refreshTimer = null;
+  var empresasTimer = null;
+  var verificandoEmpresas = false;
+
+  function gerarCodigo() {
+    var c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", s = "";
+    for (var i = 0; i < 8; i++) s += c[Math.floor(Math.random() * c.length)];
+    localStorage.setItem("app_client_code", s);
+    return s;
+  }
+
+  function salvarEmpresas() { localStorage.setItem("app_empresas", JSON.stringify(empresas)); }
+  function idsEmpresas() { return empresas.map(function(e){ return Number(e.id_empresa); }).filter(Boolean); }
+
+  /* ── DOM helpers ─────────────────────────────────── */
+  function q(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function(m) {
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m];
+    });
+  }
+  function showScreen(id) {
+    ["screenEmpty","screenChat"].forEach(function(s){ q(s).classList.remove("is-active"); });
+    q(id).classList.add("is-active");
+  }
+  function openModal()  { q("modalAdd").classList.add("is-open"); setTimeout(function(){ q("inputCodigo").focus(); }, 80); }
+  function closeModal() { q("modalAdd").classList.remove("is-open"); }
+  function msgBox(txt, ok) {
+    var el = q("addMsg");
+    el.textContent = txt;
+    el.className = "modal-msg " + (ok ? "ok" : "err");
+  }
+  function closeSidebar() {
+    q("sidebar").classList.remove("is-open");
+    q("sidebarOverlay").classList.remove("is-open");
+  }
+  function openSidebar() {
+    q("sidebar").classList.add("is-open");
+    q("sidebarOverlay").classList.add("is-open");
+  }
+
+  /* ── Máscara de telefone ─────────────────────────── */
+  function mascaraTel(v) {
+    var d = v.replace(/\D/g, '').substring(0, 11);
+    if (d.length <= 2)  return d.length ? '(' + d : '';
+    if (d.length <= 6)  return '(' + d.substring(0,2) + ') ' + d.substring(2);
+    if (d.length <= 10) return '(' + d.substring(0,2) + ') ' + d.substring(2,6) + '-' + d.substring(6);
+    return '(' + d.substring(0,2) + ') ' + d.substring(2,7) + '-' + d.substring(7);
+  }
+  q('dadosTelefone').addEventListener('input', function() {
+    var p = this.selectionStart, old = this.value;
+    this.value = mascaraTel(this.value);
+    var diff = this.value.length - old.length;
+    this.setSelectionRange(p + diff, p + diff);
+  });
+
+  /* ── Meus dados ──────────────────────────────────── */
+  function renderDados() {
+    var temDados = clientDados && clientDados.nome && clientDados.telefone;
+    var st = q('dadosStatus');
+    if (temDados) {
+      st.textContent = '✓ ' + clientDados.nome.split(' ')[0];
+      st.className = 'my-dados__status ok';
+    } else {
+      st.textContent = 'não preenchido';
+      st.className = 'my-dados__status';
+    }
+    if (clientDados) {
+      q('dadosNome').value     = clientDados.nome     || '';
+      q('dadosTelefone').value = clientDados.telefone ? mascaraTel(clientDados.telefone) : '';
+      q('dadosEndereco').value = clientDados.endereco || '';
+    }
+  }
+
+  function sincronizarDados(empresa) {
+    if (!clientDados || !clientDados.nome || !clientDados.telefone) return;
+    var lista = empresa ? [empresa] : empresas;
+    lista.forEach(function(e) {
+      if (!e.token) return;
+      apiPost('appClienteValidar.php', {
+        nome:      clientDados.nome,
+        telefone:  clientDados.telefone,
+        endereco:  clientDados.endereco || '',
+        device_id: clientCode
+      }, e.token).then(function(resp) {
+        if (resp.ok && resp.token) {
+          var idx = empresas.findIndex(function(x){ return Number(x.id_empresa) === Number(e.id_empresa); });
+          if (idx >= 0) { empresas[idx].token = resp.token; }
+          if (ativa && Number(ativa.id_empresa) === Number(e.id_empresa)) { ativa.token = resp.token; }
+          salvarEmpresas();
+        }
+      });
+    });
+  }
+
+  q('btnDadosToggle').addEventListener('click', function() {
+    var form  = q('dadosForm');
+    var arrow = q('dadosArrow');
+    var open  = form.style.display === 'block';
+    form.style.display = open ? 'none' : 'block';
+    arrow.classList.toggle('open', !open);
+    if (!open) q('dadosNome').focus();
+  });
+
+  q('btnDadosSalvar').addEventListener('click', function() {
+    var nome    = q('dadosNome').value.trim();
+    var telRaw  = q('dadosTelefone').value.replace(/\D/g, '');
+    var endereco = q('dadosEndereco').value.trim();
+    var msg     = q('dadosMsg');
+    if (!nome) { msg.textContent = 'Informe seu nome.'; msg.style.color = '#dc2626'; return; }
+    if (telRaw.length < 10 || telRaw.length > 13) { msg.textContent = 'Telefone inválido (inclua DDD).'; msg.style.color = '#dc2626'; return; }
+    clientDados = { nome: nome, telefone: telRaw, endereco: endereco };
+    localStorage.setItem('app_client_dados', JSON.stringify(clientDados));
+    msg.textContent = '✓ Dados salvos!'; msg.style.color = '#10a37f';
+    setTimeout(function() { msg.textContent = ''; }, 2500);
+    renderDados();
+    sincronizarDados(null);
+  });
+
+  /* ── API ─────────────────────────────────────────── */
+  function apiPost(path, data, token) {
+    var h = {"Content-Type":"application/json"};
+    if (token) h.Authorization = "Bearer " + token;
+    return fetch(API + path, { method:"POST", headers:h, body:JSON.stringify(data||{}) }).then(function(r){ return r.json(); });
+  }
+  function apiGet(path, params, token) {
+    var qs = new URLSearchParams(params||{}).toString();
+    var h = {};
+    if (token) h.Authorization = "Bearer " + token;
+    return fetch(API + path + (qs?"?"+qs:""), {headers:h}).then(function(r){ return r.json(); });
+  }
+
+  /* ── Sidebar ──────────────────────────────────────── */
+  function renderSidebar() {
+    q("myCode").textContent = clientCode;
+    if (!empresas.length) {
+      q("empresaList").innerHTML = '<div class="empresa-empty">Nenhuma empresa adicionada.<br>Clique em "Adicionar empresa".</div>';
+      return;
+    }
+    q("empresaList").innerHTML = empresas.map(function(e) {
+      var isAtiva = ativa && Number(e.id_empresa) === Number(ativa.id_empresa);
+      var ini = (e.nome || "L").substring(0,1).toUpperCase();
+      var cor = e.cor_principal || "#111827";
+      return '<div class="empresa-item' + (isAtiva?" is-active":"") + '" data-id="' + esc(e.id_empresa) + '">' +
+        '<div class="empresa-item__avatar" style="background:' + esc(cor) + '">' + esc(ini) + '</div>' +
+        '<div class="empresa-item__body">' +
+          '<div class="empresa-item__nome">' + esc(e.nome || "Loja") + '</div>' +
+          '<div class="empresa-item__sub">Chat ativo</div>' +
+        '</div>' +
+        '<button class="empresa-item__remove" data-remove="' + esc(e.id_empresa) + '" title="Remover">✕</button>' +
+      '</div>';
+    }).join("");
+  }
+
+  /* ── Selecionar empresa ───────────────────────────── */
+  function selecionarEmpresa(e) {
+    ativa = e;
+    document.documentElement.style.setProperty("--brand", e.cor_principal || "#111827");
+    q("chatNome").textContent = e.nome || "Loja";
+    renderSidebar();
+    closeSidebar();
+    showScreen("screenChat");
+    carregarMensagens();
+    iniciarRefresh();
+  }
+
+  /* ── Mensagens ────────────────────────────────────── */
+  function addBubble(tipo, texto, data) {
+    var wrap = document.createElement("div");
+    wrap.className = "msg-row " + (tipo === "empresa" ? "loja" : tipo);
+    var nome   = tipo === "cliente" ? "Você" : (tipo === "sistema" ? "Sistema" : (ativa ? ativa.nome : "Loja"));
+    var avatar = tipo === "cliente" ? "V"    : (tipo === "sistema" ? "S" : (ativa ? ativa.nome.substring(0,1).toUpperCase() : "L"));
+    if (tipo === "cliente" || tipo === "sistema") {
+      wrap.innerHTML = '<div class="msg-inner"><div class="msg-body">' + esc(texto) + '</div></div>';
+    } else {
+      wrap.innerHTML = '<div class="msg-inner"><div class="msg-avatar">' + esc(avatar) + '</div><div class="msg-body">' + esc(texto) + '</div></div>';
+    }
+    q("messages").appendChild(wrap);
+    q("messages").scrollTop = q("messages").scrollHeight;
+  }
+
+  function renderEstadoVazio() {
+    var msg = ativa && ativa.mensagem_inicial ? ativa.mensagem_inicial : "Pergunte sobre produtos, valores, disponibilidade ou faça seu pedido.";
+    q("messages").innerHTML = '<div class="empty-chat"><h2>' + esc(ativa ? ativa.nome : "Loja") + '</h2><p>' + esc(msg) + '</p></div>';
+  }
+
+  function renderMensagens(msgs) {
+    q("messages").innerHTML = "";
+    if (!msgs.length) { renderEstadoVazio(); return; }
+    msgs.forEach(function(m) { addBubble(m.remetente_tipo, m.mensagem, m.criado_em); });
+  }
+
+  function carregarMensagens() {
+    if (!ativa) return;
+    apiGet("chatMensagens.php", { id_empresa: ativa.id_empresa, id_conversa: ativa.id_conversa || 0 }, ativa.token).then(function(resp) {
+      if (resp.ok) {
+        ativa.id_conversa = resp.id_conversa || ativa.id_conversa;
+        var idx = empresas.findIndex(function(e){ return Number(e.id_empresa) === Number(ativa.id_empresa); });
+        if (idx >= 0) { empresas[idx].id_conversa = ativa.id_conversa; salvarEmpresas(); }
+        renderMensagens(resp.mensagens || []);
+      } else if (resp.ok === false) {
+        renderEstadoVazio();
+      }
+    });
+  }
+
+  function iniciarRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(carregarMensagens, 15000);
+  }
+
+  function mesclarEmpresa(e) {
+    var idx = empresas.findIndex(function(x){ return Number(x.id_empresa) === Number(e.id_empresa); });
+    if (idx >= 0) {
+      empresas[idx] = Object.assign({}, empresas[idx], e);
+      return false;
+    }
+    empresas.push(e);
+    return true;
+  }
+
+  function verificarEmpresasConectadas() {
+    if (verificandoEmpresas) return;
+    verificandoEmpresas = true;
+    apiPost("appEmpresasPendentes.php", {
+      codigo_cliente: clientCode,
+      device_id: clientCode,
+      device_info: navigator.userAgent,
+      ids_empresas: idsEmpresas()
+    }).then(function(resp) {
+      verificandoEmpresas = false;
+      if (!resp.ok || !Array.isArray(resp.empresas) || !resp.empresas.length) return;
+      var tinhaAtiva = !!ativa;
+      resp.empresas.forEach(mesclarEmpresa);
+      salvarEmpresas();
+      renderSidebar();
+      if (!tinhaAtiva && resp.empresas.length) {
+        selecionarEmpresa(resp.empresas[0]);
+      }
+    }).catch(function() {
+      verificandoEmpresas = false;
+    });
+  }
+
+  function iniciarVerificacaoEmpresas() {
+    verificarEmpresasConectadas();
+    if (empresasTimer) clearInterval(empresasTimer);
+    empresasTimer = setInterval(verificarEmpresasConectadas, 5000);
+  }
+
+  /* ── Enviar mensagem ──────────────────────────────── */
+  q("chatForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    if (!ativa) return;
+    var txt = q("chatTexto").value.trim();
+    if (!txt) return;
+    q("chatTexto").value = "";
+    q("chatTexto").style.height = "auto";
+    if (q("messages").querySelector(".empty-chat")) q("messages").innerHTML = "";
+    addBubble("cliente", txt);
+    var payload = { id_empresa: ativa.id_empresa, mensagem: txt };
+    if (clientDados && clientDados.nome && clientDados.telefone) {
+      payload.nome_cliente     = clientDados.nome;
+      payload.telefone_cliente = clientDados.telefone;
+      payload.endereco_cliente = clientDados.endereco || '';
+    }
+    apiPost("chatEnviar.php", payload, ativa.token).then(function(resp) {
+      if (resp.ok) {
+        ativa.id_conversa = resp.id_conversa || ativa.id_conversa;
+        if (resp.cliente_validado && resp.cliente_validado.token) {
+          ativa.token = resp.cliente_validado.token;
+          var idx = empresas.findIndex(function(e){ return Number(e.id_empresa) === Number(ativa.id_empresa); });
+          if (idx >= 0) { empresas[idx].token = ativa.token; salvarEmpresas(); }
+        }
+        if (resp.assistente && resp.assistente.mensagem) addBubble("assistente", resp.assistente.mensagem);
+      } else {
+        addBubble("sistema", resp.mensagem || "Não foi possível enviar.");
+      }
+    });
+  });
+
+  q("chatTexto").addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = Math.min(this.scrollHeight, 150) + "px";
+  });
+  q("chatTexto").addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); q("chatForm").requestSubmit(); }
+  });
+
+  /* ── Conectar empresa ─────────────────────────────── */
+  function conectarEmpresa() {
+    var codigo = q("inputCodigo").value.trim().toUpperCase();
+    if (!codigo) return;
+    q("btnConectar").disabled = true;
+    msgBox("Conectando...", true);
+    apiPost("appEmpresaConectar.php", {
+      codigo_empresa: codigo,
+      codigo_cliente: clientCode,
+      device_id:      clientCode,
+      device_info:    navigator.userAgent
+    }).then(function(resp) {
+      q("btnConectar").disabled = false;
+      if (resp.ok) {
+        var e = resp.empresa;
+        e.token       = resp.token;
+        e.id_conversa = resp.id_conversa || 0;
+        var idx = empresas.findIndex(function(x){ return Number(x.id_empresa) === Number(e.id_empresa); });
+        if (idx >= 0) empresas[idx] = e; else empresas.push(e);
+        salvarEmpresas();
+        q("inputCodigo").value = "";
+        closeModal();
+        sincronizarDados(e);
+        selecionarEmpresa(e);
+      } else {
+        msgBox(resp.mensagem || "Código inválido ou empresa inativa.", false);
+      }
+    }).catch(function() {
+      q("btnConectar").disabled = false;
+      msgBox("Erro de conexão. Tente novamente.", false);
+    });
+  }
+
+  /* ── Remover empresa ──────────────────────────────── */
+  function removerEmpresa(idEmpresa) {
+    empresas = empresas.filter(function(e){ return Number(e.id_empresa) !== Number(idEmpresa); });
+    salvarEmpresas();
+    if (ativa && Number(ativa.id_empresa) === Number(idEmpresa)) {
+      ativa = null;
+      if (refreshTimer) clearInterval(refreshTimer);
+      if (empresas.length) selecionarEmpresa(empresas[0]);
+      else { showScreen("screenEmpty"); renderSidebar(); }
+    } else {
+      renderSidebar();
+    }
+  }
+
+  /* ── Eventos ─────────────────────────────────────── */
+  q("btnAddSidebar").addEventListener("click", openModal);
+  q("btnAddMain").addEventListener("click", openModal);
+  q("btnModalClose").addEventListener("click", closeModal);
+  q("btnConectar").addEventListener("click", conectarEmpresa);
+  q("inputCodigo").addEventListener("keydown", function(e){ if(e.key==="Enter"){ e.preventDefault(); conectarEmpresa(); } });
+  q("modalAdd").addEventListener("click", function(e){ if(e.target===this) closeModal(); });
+
+  q("btnCopy").addEventListener("click", function() {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(clientCode).then(function(){ q("btnCopy").textContent = "Copiado!"; setTimeout(function(){ q("btnCopy").textContent = "Copiar"; }, 1500); });
+    } else {
+      prompt("Seu código:", clientCode);
+    }
+  });
+
+  q("btnBack").addEventListener("click", function() { openSidebar(); });
+  q("sidebarOverlay").addEventListener("click", closeSidebar);
+
+  q("empresaList").addEventListener("click", function(e) {
+    var remove = e.target.closest("[data-remove]");
+    if (remove) { e.stopPropagation(); removerEmpresa(remove.getAttribute("data-remove")); return; }
+    var item = e.target.closest("[data-id]");
+    if (!item) return;
+    var id = item.getAttribute("data-id");
+    var emp = empresas.find(function(x){ return String(x.id_empresa) === String(id); });
+    if (emp) selecionarEmpresa(emp);
+  });
+
+  /* ── Init ─────────────────────────────────────────── */
+  renderDados();
+  renderSidebar();
+  if (empresas.length) {
+    selecionarEmpresa(empresas[0]);
+  } else {
+    showScreen("screenEmpty");
+  }
+  iniciarVerificacaoEmpresas();
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) verificarEmpresasConectadas();
+  });
+</script>
+</body>
+</html>
